@@ -31,6 +31,21 @@ jobs:
       run: |
         pip install buildozer
 
+    - name: Install Android SDK
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y lib32stdc++6 lib32z1
+        sudo apt-get install -y android-sdk
+    
+    - name: Set up Android SDK
+      run: |
+        sdkmanager --install "platform-tools" "platforms;android-31" "build-tools;31.0.0" "extras;google;google_play_services" "extras;android;m2repository"
+        sdkmanager --install "cmdline-tools;latest" "platforms;android-30" "platforms;android-31"
+        sdkmanager --install "system-images;android-31;google_apis;x86_64"
+        sdkmanager --install "ndk;21.3.6528147"
+        sdkmanager --install "aidl" # Installation de AIDL
+        yes | sdkmanager --licenses
+
     - name: Build APK
       run: |
         buildozer android debug
