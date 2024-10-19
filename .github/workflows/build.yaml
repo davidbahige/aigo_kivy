@@ -1,58 +1,43 @@
-name: Build APK
-
+name: CI
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    branches: [ main ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.9
+      - name: Get Date
+        id: get-date
+        run: |
+          echo "::set-output name=date::$(/bin/date -u "+%Y%m%d")"
+        shell: bash
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-pip build-essential \
-        libssl-dev libffi-dev python3-dev libfreetype6-dev \
-        libpng-dev pkg-config libgl1-mesa-dev
-        pip install cython
+      - name: Cache Buildozer global directory
+        uses: actions/cache@v2
+        with:
+          path: .buildozer_global
+          key: buildozer-global-${{ hashFiles('buildozer.spec') }}
 
-    - name: Install Buildozer
-      run: |
-        pip install buildozer
+      - name: Cache Buildozer directory
+        uses: actions/cache@v2
+        with:
+          path: .buildozer
+          key: ${{ runner.os }}-${{ steps.get-date.outputs.date }}-${{ hashFiles('buildozer.spec') }}
 
-    - name: Install Android SDK
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y lib32stdc++6 lib32z1
-        sudo apt-get install -y android-sdk
-    
-    - name: Set up Android SDK
-      run: |
-        sdkmanager --install "platform-tools" "platforms;android-31" "build-tools;31.0.0" "extras;google;google_play_services" "extras;android;m2repository"
-        sdkmanager --install "cmdline-tools;latest" "platforms;android-30" "platforms;android-31"
-        sdkmanager --install "system-images;android-31;google_apis;x86_64"
-        sdkmanager --install "ndk;21.3.6528147"
-        sdkmanager --install "aidl" # Installation de AIDL
-        yes | sdkmanager --licenses
+      - name: Build with Buildozer
+        uses: ArtemSBulgakov/buildozer-action@v1
+        id: buildozer
+        with:
+          command: buildozer android debug
+          buildozer_version: stable
 
-    - name: Build APK
-      run: |
-        buildozer android debug
-
-    - name: Upload APK
-      uses: actions/upload-artifact@v3
-      with:
-        name: my-apk
-        path: path/to/your/apk/file.apk
-
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: package
+          path: ${{ steps.buildozer.outputs.filename }}
